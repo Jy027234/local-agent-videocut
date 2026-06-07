@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "smart-video-cut-local"
+version = "0.1.0"
+description = "Standalone Local Studio for agent-assisted video editing with bundled video toolkit runtime"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "pydantic>=2.7",
+]
+
+[project.optional-dependencies]
+web = [
+  "fastapi>=0.111",
+  "uvicorn>=0.30",
+]
+filmgen = [
+  "starlette>=0.37",
+  "uvicorn>=0.30",
+]
+analysis = [
+  "click!=8.3.0,~=8.0",
+  "numpy>=2",
+  "opencv-python-headless>=4.9",
+  "platformdirs",
+  "static-ffmpeg>=3.0; platform_system == 'Windows'",
+  "tqdm",
+]
+tts-edge = [
+  "edge-tts>=6.1",
+]
+tts = [
+  "edge-tts>=6.1",
+  "onnxruntime>=1.17",
+]
+source-separation = [
+  "demucs>=4.0",
+]
+dev = [
+  "pytest>=8.0",
+]
+
+[project.scripts]
+smart-video-cut = "smart_video_cut.cli:main"
+smart-video-cut-web = "smart_video_cut.web_app:main"
+aifilm-studio = "aifilm_studio.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

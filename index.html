@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>启动智能剪辑软件</title>
+  <style>
+    body { font-family: "Microsoft YaHei", system-ui, sans-serif; margin: 40px; line-height: 1.7; color: #15181d; }
+    a, code { color: #1769ff; }
+    .box { max-width: 760px; border: 1px solid #dfe3ea; border-radius: 8px; padding: 22px; }
+    .btn { display: inline-block; padding: 10px 14px; color: #fff; background: #1769ff; border-radius: 6px; text-decoration: none; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1>智子agent智能剪辑软件 Local Studio</h1>
+    <p>先启动本地服务，再进入网页操作界面。网页里可以创建样板包、选择输入输出文件夹、填写剪辑要求并启动任务。</p>
+    <p><strong>推荐打开方式：</strong>双击根目录下的 <code>启动本地智能剪辑软件.bat</code>，它会自动打开操作网页。</p>
+    <p>如果服务已经启动，也可以直接点击：</p>
+    <p><a class="btn" href="http://127.0.0.1:8769">打开本地操作界面</a></p>
+    <p>PowerShell 启动方式：</p>
+    <pre>.\启动本地智能剪辑软件.ps1</pre>
+    <p>注意：直接双击这个 <code>index.html</code> 只会看到说明页，不会自动启动 Python 本地服务。</p>
+  </div>
+</body>
+</html>

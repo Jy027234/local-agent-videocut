@@ -195,7 +195,7 @@ def test_run_edit_with_filmgen_subtitle_mode_writes_handoff(tmp_path: Path) -> N
     settings.subtitle.location_info = "同家庄镇张庄村"
     create_style_package(
         StylePackageRequest(
-            name="FilmGen Subtitle Case",
+            name="External Subtitle Case",
             template_video=template,
             package_dir=tmp_path / "pkg",
             settings=settings,
@@ -207,7 +207,7 @@ def test_run_edit_with_filmgen_subtitle_mode_writes_handoff(tmp_path: Path) -> N
             style_package=tmp_path / "pkg",
             input_video=input_video,
             output_dir=tmp_path / "out",
-            user_request="生成 FilmGen 字幕交接。",
+            user_request="生成外部字幕交接。",
             execute_real_render=False,
             project_id="filmgen_subtitle_case",
         )

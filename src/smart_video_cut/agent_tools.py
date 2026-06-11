@@ -1013,7 +1013,7 @@ def build_default_registry() -> AgentToolRegistry:
     registry.register(ToolDefinition(
         tool_id="inspect_local_toolkit_protocol",
         name="检查本地协议",
-        description="识别并摘要本地协议文件或目录，兼容 Worker、ProjectPack、FilmGen handoff 等",
+        description="识别并摘要本地协议文件或目录，兼容 Worker、ProjectPack、外部交接 handoff 等",
         category="project",
         parameters=[
             ToolParameter("path", "path", description="文件或目录路径"),
@@ -1025,7 +1025,7 @@ def build_default_registry() -> AgentToolRegistry:
     registry.register(ToolDefinition(
         tool_id="run_protocol_path",
         name="按协议执行",
-        description="执行可运行的本地协议文件，支持 Worker 任务包、ProjectPack、FilmGen handoff 等",
+        description="执行可运行的本地协议文件，支持 Worker 任务包、ProjectPack、外部交接 handoff 等",
         category="editing",
         parameters=[
             ToolParameter("path", "path", description="协议文件路径"),
@@ -1053,7 +1053,7 @@ def build_default_registry() -> AgentToolRegistry:
     registry.register(ToolDefinition(
         tool_id="import_protocol_dropbox_item",
         name="投递协议文件到标准队列",
-        description="把 Worker、ProjectPack、FilmGen handoff、输出目录或批量任务 JSON 复制到标准投递箱并自动归类",
+        description="把 Worker、ProjectPack、外部交接 handoff、输出目录或批量任务 JSON 复制到标准投递箱并自动归类",
         category="project",
         parameters=[
             ToolParameter("source_path", "path", description="来源文件或目录"),

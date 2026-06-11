@@ -42,7 +42,6 @@ New-Item -ItemType Directory -Force -Path (Join-Path $PackageDir "workspace\conf
 New-Item -ItemType Directory -Force -Path (Join-Path $PackageDir "workspace\output") | Out-Null
 New-Item -ItemType Directory -Force -Path (Join-Path $PackageDir "workspace\projects") | Out-Null
 New-Item -ItemType Directory -Force -Path (Join-Path $PackageDir "workspace\voice_samples") | Out-Null
-New-Item -ItemType Directory -Force -Path (Join-Path $PackageDir "workspace\filmgen_studio") | Out-Null
 
 @'
 @echo off
@@ -59,7 +58,7 @@ echo [2/2] Checking dependencies...
 ".venv\Scripts\python.exe" -c "import fastapi,uvicorn,pydantic" >nul 2>nul
 if errorlevel 1 (
   ".venv\Scripts\python.exe" -m pip install --upgrade pip
-  ".venv\Scripts\python.exe" -m pip install -e ".[web,filmgen,analysis,tts]"
+  ".venv\Scripts\python.exe" -m pip install -e ".[web,analysis,tts]"
 )
 
 echo Starting Zhiziagent Local Studio V0.1 Free Trial...
@@ -67,30 +66,6 @@ start "" "http://127.0.0.1:8769"
 ".venv\Scripts\python.exe" -m smart_video_cut.web_app
 pause
 '@ | Set-Content -LiteralPath (Join-Path $PackageDir "启动软件.bat") -Encoding OEM
-
-@'
-@echo off
-setlocal
-cd /d "%~dp0"
-set "PYTHONPATH=%CD%\src"
-
-if not exist ".venv\Scripts\python.exe" (
-  echo [1/2] Creating local Python environment...
-  py -3.12 -m venv .venv || py -3.11 -m venv .venv || py -m venv .venv
-)
-
-echo [2/2] Checking FilmGen dependencies...
-".venv\Scripts\python.exe" -c "import starlette,uvicorn" >nul 2>nul
-if errorlevel 1 (
-  ".venv\Scripts\python.exe" -m pip install --upgrade pip
-  ".venv\Scripts\python.exe" -m pip install -e ".[filmgen]"
-)
-
-echo Starting FilmGen Studio...
-start "" "http://127.0.0.1:8777"
-".venv\Scripts\python.exe" -m aifilm_studio.cli serve --host 127.0.0.1 --port 8777 --data-dir workspace\filmgen_studio
-pause
-'@ | Set-Content -LiteralPath (Join-Path $PackageDir "启动FilmGen Studio.bat") -Encoding OEM
 
 @'
 # 智子agent智能剪辑软件 Local Studio V0.1 免费试用版
@@ -101,12 +76,10 @@ pause
 
 1. 解压整个文件夹。
 2. 双击 `启动软件.bat` 打开智能剪辑软件。
-3. 如需使用 AI 生成中枢，双击 `启动FilmGen Studio.bat`。
-4. 第一次启动会创建本地 Python 环境并安装依赖，完成后会打开：
+3. 第一次启动会创建本地 Python 环境并安装依赖，完成后会打开：
 
 ```text
 http://127.0.0.1:8769
-http://127.0.0.1:8777
 ```
 
 ## 基本流程
@@ -119,20 +92,12 @@ http://127.0.0.1:8777
 4. 确认后点击“确认并开始剪辑”。
 5. 在“结果与复剪”里查看成片和继续修改。
 
-FilmGen Studio：
-
-1. 在“设置”里配置编剧策划、文生图、图生视频三个模型。
-2. 新建项目，填写需求 Brief。
-3. 按顺序完成策划验收、图片验收、视频验收。
-4. 在“交付”里导出 edit pack，并发送到智能剪辑软件生成剪辑标准预览。
-
 ## 说明
 
 - V0.1 免费试用版不包含收费、扫码、激活功能。
 - 视频、音频、样板包和输出结果都保存在本机。
 - 默认优先使用项目内 `packages\ffmpeg\bin`。
 - MOSS-TTS-Nano 已随包放入，可在“设置”里检测和测试人声。
-- FilmGen Studio 的“帮助”页内置了完整使用说明和发布前检查清单。
 
 ## 常见问题
 

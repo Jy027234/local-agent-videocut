@@ -8,6 +8,7 @@ import urllib.request
 from typing import Callable
 from typing import Any
 
+from smart_video_cut.external_handoff_compat import LEGACY_SUBTITLE_MODE
 
 DIRECTOR_CHAT_SCHEMA = "smart_video_cut.local.director_chat.v0"
 DIRECTOR_LLM_SCHEMA = "smart_video_cut.local.director_llm_response.v0"
@@ -23,7 +24,7 @@ _INTENT_KEYWORDS: list[tuple[str, tuple[str, ...]]] = [
     ("material", ("素材", "画面", "门", "锁", "安装", "环境", "镜头来源")),
     ("bgm", ("bgm", "BGM", "音乐", "配乐", "伴奏", "素材库音乐")),
     ("voice", ("配音", "旁白", "人声", "tts", "TTS", "男声", "女声", "音色")),
-    ("filmgen", ("filmgen", "FilmGen", "handoff", "交接", "外部生成")),
+    ("filmgen", ("filmgen", "FilmGen", "handoff", "外部交接", "外部导出", "外部字幕", "外部生成")),
 ]
 
 
@@ -116,9 +117,9 @@ def _infer_settings_overrides(text: str) -> dict[str, Any]:
     if _has_any(normalized, ("不加字幕", "不要字幕", "无字幕", "去掉字幕")):
         _deep_set(overrides, "subtitle", "enabled", False)
         _deep_set(overrides, "subtitle", "mode", "none")
-    elif _has_any(normalized, ("filmgen 字幕", "filmgen字幕", "字幕交接")):
+    elif _has_any(normalized, ("filmgen 字幕", "filmgen字幕", "字幕交接", "外部字幕", "外部字幕交接")):
         _deep_set(overrides, "subtitle", "enabled", True)
-        _deep_set(overrides, "subtitle", "mode", "filmgen")
+        _deep_set(overrides, "subtitle", "mode", LEGACY_SUBTITLE_MODE)
 
     if _has_any(normalized, ("不加配音", "不要配音", "无配音", "去掉配音")):
         _deep_set(overrides, "voice", "provider", "none")
@@ -236,8 +237,8 @@ def _suggest_actions(
         })
     elif intent == "filmgen":
         actions.append({
-            "action_id": "filmgen_handoff",
-            "label": "生成 FilmGen 交接文件",
+            "action_id": "external_handoff",
+            "label": "生成外部交接文件",
             "api_endpoint": "/api/cut",
             "requires_confirmation": True,
         })
@@ -275,7 +276,7 @@ def _assistant_message(
         "material": "我会优先检查素材分工，确保产品主体、安装过程和环境镜头各司其职。",
         "bgm": "我会把音乐偏好转成 BGM 适配器选择，必要时从本地素材库里推荐一首。",
         "voice": "我会把配音要求转成人声适配器配置，再生成或保留旁白文案。",
-        "filmgen": "我会按 FilmGen 交接思路组织字幕或导出 handoff，方便外部生成中枢接力。",
+        "filmgen": "我会按外部交接思路组织字幕或导出 handoff，方便后续流程继续接力。",
         "clarify": "我理解到的是一个剪辑方向，我可以先生成剪辑标准，也可以先做时间线预览。",
     }
     message = intent_messages.get(intent, intent_messages["clarify"])

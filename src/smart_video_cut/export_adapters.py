@@ -5,6 +5,13 @@ import shutil
 from pathlib import Path
 from typing import Any
 
+from smart_video_cut.external_handoff_compat import (
+    EXTERNAL_EXPORT_RESULT_KEY,
+    LEGACY_EXPORT_ADAPTER_ID,
+    LEGACY_EXPORT_FILENAME,
+    LEGACY_EXPORT_RESULT_KEY,
+    preferred_external_handoff_path,
+)
 
 EXPORT_ADAPTER_RESULT_SCHEMA = "smart_video_cut.local.export_adapter_result.v0"
 EXPORT_PROJECT_PACK_RESULT_SCHEMA = "smart_video_cut.local.export_project_pack_result.v0"
@@ -36,17 +43,18 @@ def run_runtime_exports(
     if local_mp4.get("ok") is True and local_mp4.get("copied_output_video"):
         completed.append("export.local_mp4")
     if filmgen_handoff.get("ok") is True and filmgen_handoff.get("handoff_path"):
-        completed.append("export.filmgen_handoff")
+        completed.append(LEGACY_EXPORT_ADAPTER_ID)
     return {
         "schema": EXPORT_ADAPTER_RESULT_SCHEMA,
         "ok": local_mp4.get("ok") is True,
-        "selected_adapter_ids": ["export.local_mp4", "export.project_pack", "export.filmgen_handoff"],
+        "selected_adapter_ids": ["export.local_mp4", "export.project_pack", LEGACY_EXPORT_ADAPTER_ID],
         "completed_adapter_ids": completed,
         "copied_output_video": local_mp4.get("copied_output_video"),
         "exports": {
             "local_mp4": local_mp4,
             "project_pack": project_pack,
-            "filmgen_handoff": filmgen_handoff,
+            LEGACY_EXPORT_RESULT_KEY: filmgen_handoff,
+            EXTERNAL_EXPORT_RESULT_KEY: filmgen_handoff,
         },
         "warnings": _runtime_export_warnings(local_mp4),
     }
@@ -140,7 +148,7 @@ def filmgen_handoff_export_status(
 ) -> dict[str, Any]:
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
-    handoff_path = output_path / "filmgen_handoff.json"
+    handoff_path = preferred_external_handoff_path(output_path)
     payload = _filmgen_handoff_payload(
         output_dir=output_path,
         summary=summary or {},
@@ -148,12 +156,13 @@ def filmgen_handoff_export_status(
         project_pack=project_pack or project_pack_export_status(output_dir=output_path),
         handoff_path=handoff_path,
     )
+    payload["external_contract"] = payload["filmgen_contract"]
     handoff_path.write_text(
         json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True),
         encoding="utf-8",
     )
     return {
-        "adapter_id": "export.filmgen_handoff",
+        "adapter_id": LEGACY_EXPORT_ADAPTER_ID,
         "ok": handoff_path.is_file(),
         "status": "completed" if handoff_path.is_file() else "failed",
         "executed": True,
@@ -161,6 +170,8 @@ def filmgen_handoff_export_status(
         "output_dir": str(output_path),
         "handoff_path": str(handoff_path),
         "handoff": payload,
+        LEGACY_EXPORT_RESULT_KEY: payload,
+        EXTERNAL_EXPORT_RESULT_KEY: payload,
     }
 
 
@@ -206,7 +217,7 @@ def _filmgen_handoff_payload(
     return {
         "schema": EXPORT_FILMGEN_HANDOFF_SCHEMA,
         "schema_version": 1,
-        "adapter_id": "export.filmgen_handoff",
+        "adapter_id": LEGACY_EXPORT_ADAPTER_ID,
         "handoff_kind": "smart_video_cut_to_filmgen_export",
         "status": "ready",
         "handoff_path": str(handoff_path),
@@ -242,13 +253,14 @@ def _filmgen_handoff_payload(
             "required_fields": ["schema", "handoff_path", "output_dir", "final_video", "filmgen_contract"],
             "import_steps": [
                 "Validate schema and handoff_kind.",
-                "Use final_video.path as the preferred FilmGen input when it exists.",
+                "Use final_video.path as the preferred external input when it exists.",
                 "If final_video is not ready, keep output_dir/project_pack_export as plan-only context.",
             ],
         },
         "compatibility": {
             "previous_schemas": [EXPORT_FILMGEN_HANDOFF_LEGACY_SCHEMA],
             "current_schema": EXPORT_FILMGEN_HANDOFF_SCHEMA,
+            "alias_keys": [LEGACY_EXPORT_RESULT_KEY, EXTERNAL_EXPORT_RESULT_KEY],
         },
     }
 

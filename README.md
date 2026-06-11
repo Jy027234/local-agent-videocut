@@ -4,11 +4,11 @@
 
 - `smart_video_cut`：本地剪辑 UI、任务编排、项目历史、样板包、协议与本地工具链
 - `video_editing_toolkit`：内置剪辑运行时封装
-- `aifilm_studio`：可选的本地生成伴生应用
 - `desktop/electron`：Windows 本地壳
 
 仓库只保留产品代码、测试和最小启动脚本。
 本地模型、权重、运行缓存、输出素材、打包产物和私有工作区内容均不包含在版本库内。
+已被隔离的非本地版伴生应用会移动到本机 `_isolated_non_local/`，默认不纳入版本控制。
 
 ## Repository Layout
 
@@ -16,7 +16,6 @@
 src/
   smart_video_cut/         Local Studio 主产品
   video_editing_toolkit/   内置剪辑运行时
-  aifilm_studio/           伴生生成应用
 desktop/electron/          Electron 壳
 scripts/                   交付与辅助脚本
 tests/                     自动化测试

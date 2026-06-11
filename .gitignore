@@ -14,6 +14,7 @@ packages/
 release/
 tmp/
 vendor_tools/
+_isolated_non_local/
 _voice_profile_artifacts/
 MOSS-TTS-Nano/
 收费模式备份/

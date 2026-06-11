@@ -6,6 +6,10 @@ import time
 from pathlib import Path
 from typing import Any, Mapping
 
+from smart_video_cut.external_handoff_compat import (
+    LEGACY_EXPORT_QUEUE_ID,
+    LEGACY_EXTERNAL_PROTOCOL_KIND,
+)
 from smart_video_cut.export_adapters import (
     EXPORT_FILMGEN_HANDOFF_SCHEMA,
 )
@@ -46,10 +50,10 @@ _QUEUE_DEFINITIONS: tuple[dict[str, str], ...] = (
         "relative_watch_dir": "inbox/project_packs",
     },
     {
-        "queue_id": "filmgen_handoffs",
-        "protocol_kind": "filmgen_edit_pack",
-        "label": "FilmGen / 导出交接",
-        "relative_watch_dir": "inbox/filmgen_handoffs",
+        "queue_id": LEGACY_EXPORT_QUEUE_ID,
+        "protocol_kind": LEGACY_EXTERNAL_PROTOCOL_KIND,
+        "label": "外部导出交接",
+        "relative_watch_dir": f"inbox/{LEGACY_EXPORT_QUEUE_ID}",
     },
     {
         "queue_id": "local_edit_tasks",
@@ -624,7 +628,7 @@ def _readme_template(root: Path) -> str:
         "",
         "- `inbox/worker_packages`：投递 `worker_task_package.json`。",
         "- `inbox/project_packs`：投递 `project_pack.json`。",
-        "- `inbox/filmgen_handoffs`：投递 FilmGen / 导出交接 JSON。",
+        "- `inbox/filmgen_handoffs`：投递外部导出交接 JSON。",
         "- `inbox/local_edit_tasks`：投递 `smart_video_cut.local.edit_task.v0`。",
         "- `inbox/task_lists`：投递批量 `{\"tasks\": [...]}` JSON。",
         "- `archive/processed/*`：执行成功后归档。",
@@ -640,7 +644,7 @@ def _readme_template(root: Path) -> str:
         f'- 查看历史：`protocol-dropbox-history --dropbox-dir "{root}" --limit 20`',
         f'- 回投失败：`protocol-dropbox-requeue-failed --dropbox-dir "{root}" --queue-id all --max-files 20`',
         "",
-        "模板文件仅用于快速起步；真实 FilmGen handoff 和 ProjectPack 更推荐由系统自动导出。",
+        "模板文件仅用于快速起步；真实外部交接 handoff 和 ProjectPack 更推荐由系统自动导出。",
         "",
     ])
 

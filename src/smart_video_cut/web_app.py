@@ -10,8 +10,10 @@ from typing import Any
 from pydantic import BaseModel, Field
 try:
     from fastapi import Request
+    from fastapi.staticfiles import StaticFiles
 except ImportError:  # pragma: no cover
     Request = Any  # type: ignore[assignment]
+    StaticFiles = Any  # type: ignore[assignment,misc]
 
 from smart_video_cut.adapter_registry import list_default_adapters, resolve_adapter_selection
 from smart_video_cut.agent_orchestrator import orchestrate_local_agents
@@ -19,11 +21,12 @@ from smart_video_cut.agent_tools import build_default_registry
 from smart_video_cut.edit_brief import build_edit_brief
 from smart_video_cut.edit_settings import apply_visible_settings_overrides
 from smart_video_cut.deployment_guide import local_deployment_guide
-from smart_video_cut.filmgen_bridge import (
-    build_edit_brief_from_filmgen_pack,
-    build_local_edit_task_from_filmgen_pack,
-    load_filmgen_edit_pack,
-    validate_filmgen_export_handoff_import,
+from smart_video_cut.external_bridge import (
+    build_edit_brief_from_external_pack,
+    build_local_edit_task_from_external_pack,
+    load_external_edit_pack,
+    load_external_subtitle_handoff,
+    validate_external_export_handoff_import,
 )
 from smart_video_cut.folder_scanner import scan_media_folder, scan_output_folder
 from smart_video_cut.local_files import list_local_paths
@@ -85,7 +88,6 @@ from smart_video_cut.timeline_builder import (
     timeline_to_toolkit_format,
 )
 from smart_video_cut.timeline_model import TimelinePlan
-from smart_video_cut.subtitle_adapters import load_filmgen_subtitle_handoff
 from smart_video_cut.template_analysis import analyze_template_video
 from smart_video_cut.version_history import (
     get_version,
@@ -253,7 +255,7 @@ class EditBriefRequest(BaseModel):
     settings_overrides: dict[str, Any] = Field(default_factory=dict)
 
 
-class FilmgenEditPackRequest(BaseModel):
+class ExternalEditPackRequest(BaseModel):
     manifest_path: str
     style_package: str = ""
     input_video: str = ""
@@ -267,11 +269,11 @@ class FilmgenEditPackRequest(BaseModel):
     settings_overrides: dict[str, Any] = Field(default_factory=dict)
 
 
-class FilmgenSubtitleHandoffRequest(BaseModel):
+class ExternalSubtitleHandoffRequest(BaseModel):
     handoff_path: str
 
 
-class FilmgenExportHandoffValidationRequest(BaseModel):
+class ExternalExportHandoffValidationRequest(BaseModel):
     handoff_path: str
 
 
@@ -495,6 +497,7 @@ def create_app() -> Any:
         raise RuntimeError("Install web extras with `pip install -e .[web]`.") from exc
 
     app = FastAPI(title="Smart Video Cut Local Studio")
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
     @app.exception_handler(ValueError)
     async def handle_value_error(request: Request, exc: ValueError) -> JSONResponse:
@@ -504,6 +507,46 @@ def create_app() -> Any:
         if hasattr(model, "model_dump"):
             return model.model_dump()
         return model.dict()
+
+    def _filmgen_preview_payload(manifest_path: str) -> dict[str, Any]:
+        handoff = load_external_edit_pack(manifest_path)
+        return {
+            "schema": "smart_video_cut.local.filmgen_preview.v0",
+            "ok": True,
+            "filmgen_handoff": handoff,
+            "external_handoff": handoff,
+        }
+
+    def _external_preview_payload(manifest_path: str) -> dict[str, Any]:
+        handoff = load_external_edit_pack(manifest_path)
+        return {
+            "schema": "smart_video_cut.local.external_preview.v0",
+            "ok": True,
+            "external_handoff": handoff,
+            "filmgen_handoff": handoff,
+        }
+
+    def _external_export_validation_payload(handoff_path: str) -> dict[str, Any]:
+        payload = dict(validate_external_export_handoff_import(handoff_path))
+        if "external_handoff" not in payload and "filmgen_handoff" in payload:
+            payload["external_handoff"] = payload.get("filmgen_handoff")
+        return payload
+
+    def _external_edit_brief_payload(body: ExternalEditPackRequest) -> dict[str, Any]:
+        payload = build_edit_brief_from_external_pack(
+            manifest_path=body.manifest_path,
+            style_package=body.style_package,
+            input_video=body.input_video,
+            input_videos=body.input_videos,
+            output_dir=body.output_dir,
+            user_request=body.user_request,
+            settings_overrides=body.settings_overrides,
+            execute_real_render=body.execute_real_render,
+            use_memory=body.use_memory,
+        )
+        if "external_handoff" not in payload and "filmgen_handoff" in payload:
+            payload["external_handoff"] = payload.get("filmgen_handoff")
+        return payload
 
     @app.get("/", response_class=HTMLResponse)
     def index() -> str:
@@ -814,24 +857,32 @@ def create_app() -> Any:
         )
 
     @app.post("/api/filmgen/edit-pack/preview")
-    def api_filmgen_edit_pack_preview(body: FilmgenEditPackRequest) -> dict[str, Any]:
-        return {
-            "schema": "smart_video_cut.local.filmgen_preview.v0",
-            "ok": True,
-            "filmgen_handoff": load_filmgen_edit_pack(body.manifest_path),
-        }
+    def api_filmgen_edit_pack_preview(body: ExternalEditPackRequest) -> dict[str, Any]:
+        return _filmgen_preview_payload(body.manifest_path)
+
+    @app.post("/api/external/edit-pack/preview")
+    def api_external_edit_pack_preview(body: ExternalEditPackRequest) -> dict[str, Any]:
+        return _external_preview_payload(body.manifest_path)
 
     @app.post("/api/filmgen/subtitle-handoff/preview")
-    def api_filmgen_subtitle_handoff_preview(body: FilmgenSubtitleHandoffRequest) -> dict[str, Any]:
-        return load_filmgen_subtitle_handoff(body.handoff_path)
+    def api_filmgen_subtitle_handoff_preview(body: ExternalSubtitleHandoffRequest) -> dict[str, Any]:
+        return load_external_subtitle_handoff(body.handoff_path)
+
+    @app.post("/api/external/subtitle-handoff/preview")
+    def api_external_subtitle_handoff_preview(body: ExternalSubtitleHandoffRequest) -> dict[str, Any]:
+        return load_external_subtitle_handoff(body.handoff_path)
 
     @app.post("/api/filmgen/export-handoff/validate")
-    def api_filmgen_export_handoff_validate(body: FilmgenExportHandoffValidationRequest) -> dict[str, Any]:
-        return validate_filmgen_export_handoff_import(body.handoff_path)
+    def api_filmgen_export_handoff_validate(body: ExternalExportHandoffValidationRequest) -> dict[str, Any]:
+        return validate_external_export_handoff_import(body.handoff_path)
+
+    @app.post("/api/external/export-handoff/validate")
+    def api_external_export_handoff_validate(body: ExternalExportHandoffValidationRequest) -> dict[str, Any]:
+        return _external_export_validation_payload(body.handoff_path)
 
     @app.post("/api/filmgen/edit-brief")
-    def api_filmgen_edit_brief(body: FilmgenEditPackRequest) -> dict[str, Any]:
-        return build_edit_brief_from_filmgen_pack(
+    def api_filmgen_edit_brief(body: ExternalEditPackRequest) -> dict[str, Any]:
+        return build_edit_brief_from_external_pack(
             manifest_path=body.manifest_path,
             style_package=body.style_package,
             input_video=body.input_video,
@@ -843,10 +894,32 @@ def create_app() -> Any:
             use_memory=body.use_memory,
         )
 
+    @app.post("/api/external/edit-brief")
+    def api_external_edit_brief(body: ExternalEditPackRequest) -> dict[str, Any]:
+        return _external_edit_brief_payload(body)
+
     @app.post("/api/filmgen/cut")
-    def api_filmgen_cut(body: FilmgenEditPackRequest) -> dict[str, Any]:
+    def api_filmgen_cut(body: ExternalEditPackRequest) -> dict[str, Any]:
         return run_edit_with_style_package(
-            build_local_edit_task_from_filmgen_pack(
+            build_local_edit_task_from_external_pack(
+                manifest_path=body.manifest_path,
+                style_package=body.style_package,
+                input_video=body.input_video,
+                input_videos=body.input_videos,
+                output_dir=body.output_dir,
+                user_request=body.user_request,
+                settings_overrides=body.settings_overrides,
+                confirmed_brief=body.confirmed_brief,
+                execute_real_render=body.execute_real_render,
+                allow_edge_tts=body.allow_edge_tts,
+                use_memory=body.use_memory,
+            )
+        )
+
+    @app.post("/api/external/cut")
+    def api_external_cut(body: ExternalEditPackRequest) -> dict[str, Any]:
+        return run_edit_with_style_package(
+            build_local_edit_task_from_external_pack(
                 manifest_path=body.manifest_path,
                 style_package=body.style_package,
                 input_video=body.input_video,

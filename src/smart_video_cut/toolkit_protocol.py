@@ -5,12 +5,20 @@ import time
 from pathlib import Path
 from typing import Any, Mapping
 
+from smart_video_cut.external_bridge import (
+    load_external_subtitle_handoff,
+    validate_external_export_handoff_import,
+)
+from smart_video_cut.external_handoff_compat import (
+    EXTERNAL_EXPORT_RESULT_KEY,
+    LEGACY_EXPORT_FILENAME,
+    LEGACY_EXPORT_RESULT_KEY,
+)
 from smart_video_cut.batch_runner import BATCH_RUN_SCHEMA
 from smart_video_cut.export_adapters import (
     EXPORT_FILMGEN_HANDOFF_LEGACY_SCHEMA,
     EXPORT_FILMGEN_HANDOFF_SCHEMA,
 )
-from smart_video_cut.filmgen_bridge import validate_filmgen_export_handoff_import
 from smart_video_cut.models import (
     MATERIAL_PACK_SCHEMA,
     PROJECT_PACK_SCHEMA,
@@ -31,7 +39,6 @@ from smart_video_cut.project_manifest import (
 from smart_video_cut.subtitle_adapters import (
     FILMGEN_SUBTITLE_HANDOFF_PREVIEW_SCHEMA,
     FILMGEN_SUBTITLE_HANDOFF_SCHEMA,
-    load_filmgen_subtitle_handoff,
 )
 
 
@@ -67,7 +74,7 @@ _KNOWN_FILENAMES: dict[str, str] = {
     "style_package.json": "style_package",
     "local_studio_result.json": "local_edit_result",
     PROJECT_MANIFEST_FILENAME: "project_manifest",
-    "filmgen_handoff.json": "filmgen_export_handoff",
+    LEGACY_EXPORT_FILENAME: "filmgen_export_handoff",
     "subtitle_handoff.json": "subtitle_handoff",
     "batch_status.json": "batch_run",
     "watch_status.json": "watch_queue",
@@ -116,7 +123,7 @@ def write_local_toolkit_protocol(
     export_result = _mapping(result_data.get("export_adapter_result"))
     export_entries = _mapping(export_result.get("exports"))
     project_pack_export = _mapping(export_entries.get("project_pack"))
-    filmgen_export = _mapping(export_entries.get("filmgen_handoff"))
+    filmgen_export = _mapping(export_entries.get(EXTERNAL_EXPORT_RESULT_KEY) or export_entries.get(LEGACY_EXPORT_RESULT_KEY))
     manifest_version_history = _mapping(manifest_data.get("version_history"))
     filmgen_handoff_payload = _mapping(filmgen_export.get("handoff"))
 
@@ -166,7 +173,7 @@ def write_local_toolkit_protocol(
         ),
         _artifact_entry(
             artifact_id="filmgen_export_handoff",
-            label="FilmGen 导出交接",
+            label="外部导出交接",
             path=filmgen_handoff_path,
             required=False,
             schema=EXPORT_FILMGEN_HANDOFF_SCHEMA,
@@ -226,6 +233,7 @@ def write_local_toolkit_protocol(
             "project_manifest_path": str(manifest_path),
             "copied_output_video": copied_output_video,
             "filmgen_handoff_path": filmgen_handoff_path,
+            "external_handoff_path": filmgen_handoff_path,
             "subtitle_handoff_path": subtitle_handoff_path,
         },
         "artifacts": artifacts,
@@ -253,6 +261,12 @@ def write_local_toolkit_protocol(
                 "ready": bool(filmgen_handoff_path),
                 "validate_endpoint": "/api/filmgen/export-handoff/validate",
                 "preview_endpoint": "/api/filmgen/edit-pack/preview",
+                "source_schema": str(filmgen_handoff_payload.get("schema") or EXPORT_FILMGEN_HANDOFF_SCHEMA),
+            },
+            "external_import": {
+                "ready": bool(filmgen_handoff_path),
+                "validate_endpoint": "/api/external/export-handoff/validate",
+                "preview_endpoint": "/api/external/edit-pack/preview",
                 "source_schema": str(filmgen_handoff_payload.get("schema") or EXPORT_FILMGEN_HANDOFF_SCHEMA),
             },
         },
@@ -749,7 +763,7 @@ def _inspect_pack(path: Path, payload: dict[str, Any], *, include_payload: bool)
 
 
 def _inspect_filmgen_export_handoff(path: Path, *, include_payload: bool) -> dict[str, Any]:
-    validation = validate_filmgen_export_handoff_import(path)
+    validation = validate_external_export_handoff_import(path)
     filmgen_handoff = _mapping(validation.get("filmgen_handoff"))
     local_export = _mapping(validation.get("local_export"))
     return {
@@ -757,7 +771,7 @@ def _inspect_filmgen_export_handoff(path: Path, *, include_payload: bool) -> dic
         "ok": validation.get("ok") is True,
         "path": str(path),
         "protocol_kind": "filmgen_export_handoff",
-        "label": "FilmGen 导出交接",
+        "label": "外部导出交接",
         "source_schema": str(validation.get("source_schema") or local_export.get("schema") or ""),
         "summary": {
             "recommended_project_id": filmgen_handoff.get("recommended_project_id"),
@@ -767,17 +781,18 @@ def _inspect_filmgen_export_handoff(path: Path, *, include_payload: bool) -> dic
         },
         "validation": validation.get("validation") or {"valid": False, "errors": [], "warnings": []},
         "actions": [{
-            "label": "校验 FilmGen 导入",
-            "api_endpoint": "/api/filmgen/export-handoff/validate",
+            "label": "校验外部导入",
+            "api_endpoint": "/api/external/export-handoff/validate",
             "cli_command": "",
         }],
         "payload": local_export if include_payload else None,
         "filmgen_handoff": filmgen_handoff if include_payload else None,
+        "external_handoff": filmgen_handoff if include_payload else None,
     }
 
 
 def _inspect_subtitle_handoff(path: Path, *, include_payload: bool) -> dict[str, Any]:
-    preview = load_filmgen_subtitle_handoff(path)
+    preview = load_external_subtitle_handoff(path)
     handoff = _mapping(preview.get("handoff"))
     track_request = _mapping(handoff.get("track_request"))
     return {
@@ -796,7 +811,7 @@ def _inspect_subtitle_handoff(path: Path, *, include_payload: bool) -> dict[str,
         "validation": preview.get("validation") or {"valid": False, "errors": [], "warnings": []},
         "actions": [{
             "label": "预览字幕交接",
-            "api_endpoint": "/api/filmgen/subtitle-handoff/preview",
+            "api_endpoint": "/api/external/subtitle-handoff/preview",
             "cli_command": "",
         }],
         "payload": handoff if include_payload else None,

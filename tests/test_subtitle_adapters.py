@@ -101,7 +101,7 @@ def test_filmgen_subtitle_handoff_preview_validates_file(tmp_path: Path) -> None
     assert preview["ok"] is True
     assert preview["subtitle_text_count"] == 2
     assert preview["validation"]["valid"] is True
-    assert preview["import_contract"]["external_center"].startswith("FilmGen")
+    assert preview["import_contract"]["external_center"].startswith("External")
 
 
 def test_filmgen_subtitle_handoff_validation_reports_errors() -> None:

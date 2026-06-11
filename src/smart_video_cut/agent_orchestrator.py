@@ -6,6 +6,7 @@ import time
 from typing import Any, Mapping
 
 from smart_video_cut.director_agent import chat_with_director
+from smart_video_cut.external_handoff_compat import is_external_subtitle_mode
 
 
 AGENT_ORCHESTRATION_SCHEMA = "smart_video_cut.local.agent_orchestration.v0"
@@ -169,20 +170,21 @@ def _subtitle_agent(
     mode = str(subtitle.get("mode") or "auto")
     enabled = subtitle.get("enabled", True) is not False and mode != "none"
     missing: list[dict[str, str]] = []
-    if enabled and mode == "filmgen" and not _truthy(context.get("subtitle_handoff_path")):
+    if enabled and is_external_subtitle_mode(mode) and not _truthy(context.get("subtitle_handoff_path")):
         missing.append({
             "field": "subtitle_handoff_path",
-            "label": "FilmGen 字幕交接文件",
-            "reason": "选择 FilmGen 字幕模式时需要先提供 handoff 文件。",
+            "label": "外部字幕交接文件",
+            "reason": "选择外部字幕交接模式时需要先提供 handoff 文件。",
         })
     status = "disabled" if not enabled else "blocked" if missing else "ready"
+    readable_mode = "外部交接" if enabled and is_external_subtitle_mode(mode) else mode
     return _agent(
         agent_id="subtitle_designer",
         name="字幕 Agent",
         role="规划字幕来源、样式、安全边距和外部字幕交接。",
         status=status,
-        responsibilities=["字幕模式选择", "字号/描边/位置检查", "FilmGen 字幕交接验收"],
-        findings=[f"当前字幕模式：{'关闭' if not enabled else mode}。"],
+        responsibilities=["字幕模式选择", "字号/描边/位置检查", "外部字幕交接验收"],
+        findings=[f"当前字幕模式：{'关闭' if not enabled else readable_mode}。"],
         required_inputs=missing,
         tool_plan=[
             _action(

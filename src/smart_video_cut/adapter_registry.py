@@ -3,6 +3,13 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from typing import Any, Mapping
 
+from smart_video_cut.external_handoff_compat import (
+    LEGACY_EXPORT_ADAPTER_ID,
+    LEGACY_EXPORT_FILENAME,
+    LEGACY_SUBTITLE_ADAPTER_ID,
+    LEGACY_SUBTITLE_ARTIFACT_DIR,
+    is_external_subtitle_mode,
+)
 from smart_video_cut.models import LocalVisibleSettings
 
 
@@ -89,7 +96,7 @@ def resolve_adapter_selection(settings: Mapping[str, Any] | None = None) -> dict
         "subtitle": [_subtitle_adapter_id(normalized)],
         "bgm": [_bgm_adapter_id(normalized)],
         "material_analysis": _material_adapter_ids(normalized),
-        "export": ["export.local_mp4", "export.project_pack", "export.filmgen_handoff"],
+        "export": ["export.local_mp4", "export.project_pack", LEGACY_EXPORT_ADAPTER_ID],
     }
     registry = build_default_adapter_registry()
     selected_adapters = {
@@ -192,13 +199,13 @@ def _default_adapters() -> list[AdapterDefinition]:
             priority=30,
         ),
         AdapterDefinition(
-            adapter_id="subtitle.filmgen",
-            name="FilmGen 字幕交接",
+            adapter_id=LEGACY_SUBTITLE_ADAPTER_ID,
+            name="外部字幕交接",
             category="subtitle",
-            description="生成 FilmGen 可读取的本地字幕轨/字幕文案交接文件。",
+            description="生成可供外部流程读取的本地字幕轨/字幕文案交接文件。",
             capabilities=["external_subtitle_handoff", "subtitle_handoff_file"],
             input_contract="subtitle settings + optional custom_prompt/location_info.",
-            output_contract="_smart_video_cut_artifacts/_filmgen_subtitle_handoff/subtitle_handoff.json",
+            output_contract=f"_smart_video_cut_artifacts/{LEGACY_SUBTITLE_ARTIFACT_DIR}/subtitle_handoff.json",
             priority=40,
         ),
         AdapterDefinition(
@@ -321,12 +328,12 @@ def _default_adapters() -> list[AdapterDefinition]:
             priority=20,
         ),
         AdapterDefinition(
-            adapter_id="export.filmgen_handoff",
-            name="FilmGen Handoff",
+            adapter_id=LEGACY_EXPORT_ADAPTER_ID,
+            name="外部导出交接",
             category="export",
-            description="生成 FilmGen 可读取的本地导出交接 JSON。",
+            description="生成可供外部流程读取的本地导出交接 JSON。",
             capabilities=["external_project_handoff", "handoff_file_export"],
-            output_contract="output_dir/filmgen_handoff.json",
+            output_contract=f"output_dir/{LEGACY_EXPORT_FILENAME}",
             priority=30,
         ),
     ]
@@ -366,8 +373,8 @@ def _subtitle_adapter_id(settings: Mapping[str, Any]) -> str:
     mode = str(subtitle.get("mode") or "auto").strip().casefold()
     if subtitle.get("enabled", True) is False or mode == "none":
         return "subtitle.none"
-    if mode in {"filmgen", "filmgen_handoff", "handoff"}:
-        return "subtitle.filmgen"
+    if is_external_subtitle_mode(mode):
+        return LEGACY_SUBTITLE_ADAPTER_ID
     if str(subtitle.get("custom_prompt") or "").strip() or str(subtitle.get("location_info") or "").strip():
         return "subtitle.custom_text"
     return "subtitle.auto_prompt"

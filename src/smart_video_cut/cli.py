@@ -130,7 +130,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     protocol_inspect = sub.add_parser("protocol-inspect", help="Inspect a local protocol file or directory.")
     protocol_inspect.add_argument("--path", required=True)
 
-    protocol_run = sub.add_parser("protocol-run", help="Execute a runnable local protocol such as worker package, ProjectPack, or FilmGen handoff.")
+    protocol_run = sub.add_parser("protocol-run", help="Execute a runnable local protocol such as worker package, ProjectPack, or external handoff.")
     protocol_run.add_argument("--path", required=True)
     protocol_run.add_argument("--output-dir", default="")
     protocol_run.add_argument("--style-package", default="")

@@ -5,14 +5,16 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from smart_video_cut.edit_brief import build_edit_brief
+from smart_video_cut.external_handoff_compat import (
+    EXTERNAL_EXPORT_RESULT_KEY,
+    LEGACY_EXPORT_FILENAME,
+    LEGACY_EXPORT_RESULT_KEY,
+    LOCAL_EXPORT_HANDOFF_SCHEMAS,
+)
 from smart_video_cut.models import LocalEditTask
 
 
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".mkv", ".webm", ".avi", ".m4v"}
-LOCAL_EXPORT_HANDOFF_SCHEMAS = {
-    "smart_video_cut.local.export_filmgen_handoff.v0",
-    "smart_video_cut.local.export_filmgen_handoff.v1",
-}
 FILMGEN_EXPORT_HANDOFF_IMPORT_VALIDATION_SCHEMA = "smart_video_cut.local.export_filmgen_handoff_import_validation.v0"
 
 
@@ -27,7 +29,7 @@ def load_filmgen_edit_pack(manifest_path: str | Path) -> dict[str, Any]:
     elif schema in LOCAL_EXPORT_HANDOFF_SCHEMAS:
         handoff = _handoff_from_local_export(payload, manifest_path=path)
     else:
-        raise ValueError(f"unsupported FilmGen edit pack schema: {schema or '<missing>'}")
+        raise ValueError(f"unsupported external handoff schema: {schema or '<missing>'}")
     handoff["source_manifest_path"] = str(path)
     handoff["video_assets"] = _sort_video_assets_by_shot_position(
         _annotate_video_assets(handoff.get("video_assets") or []),
@@ -48,7 +50,7 @@ def validate_filmgen_export_handoff_import(handoff_path: str | Path) -> dict[str
             handoff_path=path,
             validation={
                 "valid": False,
-                "errors": [{"code": "file_not_found", "message": "filmgen_handoff.json 不存在"}],
+                "errors": [{"code": "file_not_found", "message": f"{LEGACY_EXPORT_FILENAME} 不存在"}],
                 "warnings": [],
             },
             local_export={},
@@ -109,7 +111,7 @@ def build_edit_brief_from_filmgen_pack(
     handoff = load_filmgen_edit_pack(manifest_path)
     selected_inputs = _selected_inputs(handoff, input_video=input_video, input_videos=input_videos)
     if not selected_inputs:
-        raise ValueError("FilmGen edit pack has no usable video input; provide input_video or input_videos")
+        raise ValueError("external handoff has no usable video input; provide input_video or input_videos")
     request_text = str(user_request or handoff.get("recommended_user_request") or "").strip()
     selected_output_dir = str(output_dir or handoff.get("recommended_output_dir") or Path("workspace") / "output" / "filmgen-edit")
     brief = build_edit_brief(
@@ -125,7 +127,8 @@ def build_edit_brief_from_filmgen_pack(
     return {
         "schema": "smart_video_cut.local.filmgen_edit_brief.v0",
         "ok": True,
-        "filmgen_handoff": handoff,
+        LEGACY_EXPORT_RESULT_KEY: handoff,
+        EXTERNAL_EXPORT_RESULT_KEY: handoff,
         "edit_brief": brief,
     }
 
@@ -147,7 +150,7 @@ def build_local_edit_task_from_filmgen_pack(
     handoff = load_filmgen_edit_pack(manifest_path)
     selected_inputs = _selected_inputs(handoff, input_video=input_video, input_videos=input_videos)
     if not selected_inputs:
-        raise ValueError("FilmGen edit pack has no usable video input; provide input_video or input_videos")
+        raise ValueError("external handoff has no usable video input; provide input_video or input_videos")
     selected_output_dir = str(output_dir or handoff.get("recommended_output_dir") or Path("workspace") / "output" / "filmgen-edit")
     return LocalEditTask(
         style_package=Path(style_package),
@@ -241,7 +244,7 @@ def _handoff_from_local_export(export_handoff: dict[str, Any], *, manifest_path:
             "status": "ready" if final_video.get("ready") else "referenced",
         })
     request_parts = [
-        "从智能剪辑软件导出的 FilmGen handoff 继续处理。",
+        "从智能剪辑软件导出的外部交接文件继续处理。",
         f"项目：{project_id}",
         f"输出目录：{output_dir}",
         str(toolkit_summary.get("creative_objective") or "").strip(),
@@ -335,10 +338,11 @@ def _export_handoff_validation_result(
         "validation": validation,
         "ready_for_filmgen_import": bool(candidates) or validation.get("valid") is True,
         "input_video_candidate_count": len(candidates or []),
-        "filmgen_handoff": filmgen_handoff,
+        LEGACY_EXPORT_RESULT_KEY: filmgen_handoff,
+        EXTERNAL_EXPORT_RESULT_KEY: filmgen_handoff,
         "local_export": local_export,
         "import_contract": {
-            "external_center": "FilmGen or compatible generation hub",
+            "external_center": "External generation hub or compatible tool",
             "accepted_schemas": sorted(LOCAL_EXPORT_HANDOFF_SCHEMAS),
             "preferred_input": "filmgen_handoff.input_video_candidates[0]",
         },

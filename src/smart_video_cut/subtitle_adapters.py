@@ -4,6 +4,15 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
+from smart_video_cut.external_handoff_compat import (
+    EXTERNAL_SUBTITLE_RESULT_KEY,
+    LEGACY_SUBTITLE_ADAPTER_ID,
+    LEGACY_SUBTITLE_ARTIFACT_DIR,
+    LEGACY_SUBTITLE_MODE,
+    LEGACY_SUBTITLE_RESULT_KEY,
+    is_external_subtitle_mode,
+    normalize_legacy_subtitle_mode,
+)
 
 SUBTITLE_ADAPTER_RESULT_SCHEMA = "smart_video_cut.local.subtitle_adapter_result.v0"
 FILMGEN_SUBTITLE_HANDOFF_SCHEMA = "smart_video_cut.local.filmgen_subtitle_handoff.v0"
@@ -36,7 +45,8 @@ def prepare_subtitles(
         "renderer_subtitle_enabled": adapter_id != "subtitle.none",
         "renderer_subtitle_texts": [],
         "handoff_path": None,
-        "filmgen_handoff": None,
+        LEGACY_SUBTITLE_RESULT_KEY: None,
+        EXTERNAL_SUBTITLE_RESULT_KEY: None,
     }
 
     if adapter_id == "subtitle.none":
@@ -46,7 +56,7 @@ def prepare_subtitles(
             "renderer_subtitle_enabled": False,
         })
         return result
-    if adapter_id == "subtitle.filmgen":
+    if adapter_id == LEGACY_SUBTITLE_ADAPTER_ID:
         handoff = build_filmgen_subtitle_handoff(
             subtitle_settings=settings,
             onscreen_text_policy=onscreen_text_policy,
@@ -64,7 +74,8 @@ def prepare_subtitles(
             "subtitle_texts": handoff["subtitle_texts"],
             "renderer_subtitle_enabled": False,
             "handoff_path": str(handoff_path) if handoff_path is not None else None,
-            "filmgen_handoff": handoff,
+            LEGACY_SUBTITLE_RESULT_KEY: handoff,
+            EXTERNAL_SUBTITLE_RESULT_KEY: handoff,
         })
         return result
 
@@ -87,8 +98,8 @@ def build_filmgen_subtitle_handoff(
     settings = dict(subtitle_settings or {})
     return {
         "schema": FILMGEN_SUBTITLE_HANDOFF_SCHEMA,
-        "adapter_id": "subtitle.filmgen",
-        "mode": str(settings.get("mode") or "filmgen"),
+        "adapter_id": LEGACY_SUBTITLE_ADAPTER_ID,
+        "mode": normalize_legacy_subtitle_mode(settings.get("mode"), default=LEGACY_SUBTITLE_MODE),
         "status": "ready",
         "handoff_path": None,
         "subtitle_texts": subtitle_texts_from_settings(settings),
@@ -112,7 +123,7 @@ def build_filmgen_subtitle_handoff(
         "renderer_contract": {
             "current_renderer_subtitle_enabled": False,
             "onscreen_text_policy": onscreen_text_policy,
-            "reason": "FilmGen subtitle track is handed off instead of rendered by the current toolkit.",
+            "reason": "Subtitle track is handed off to an external flow instead of being rendered by the current toolkit.",
         },
     }
 
@@ -156,8 +167,8 @@ def load_filmgen_subtitle_handoff(path: str | Path) -> dict[str, Any]:
         "subtitle_text_count": len(payload.get("subtitle_texts") or []) if isinstance(payload, Mapping) else 0,
         "import_contract": {
             "accepted_schema": FILMGEN_SUBTITLE_HANDOFF_SCHEMA,
-            "external_center": "FilmGen or compatible subtitle generation hub",
-            "next_step": "Generate an external subtitle track from subtitle_texts/style/track_request, then return subtitle assets to ProjectPack or final render pipeline.",
+            "external_center": "External subtitle generation hub or compatible tool",
+            "next_step": "Generate an external subtitle track from subtitle_texts/style/track_request, then return subtitle assets to ProjectPack or the final render pipeline.",
         },
     }
 
@@ -181,7 +192,7 @@ def validate_filmgen_subtitle_handoff(handoff: Mapping[str, Any] | None) -> dict
     if not isinstance(renderer_contract, Mapping):
         warnings.append({"code": "renderer_contract_missing", "message": "缺少 renderer_contract，无法确认本地渲染器是否应关闭字幕。"})
     elif renderer_contract.get("current_renderer_subtitle_enabled") is not False:
-        warnings.append({"code": "renderer_subtitle_not_disabled", "message": "FilmGen 字幕交接模式建议关闭本地字幕渲染。"})
+        warnings.append({"code": "renderer_subtitle_not_disabled", "message": "外部字幕交接模式建议关闭本地字幕渲染。"})
     return {
         "valid": not errors,
         "errors": errors,
@@ -193,8 +204,8 @@ def _adapter_id(settings: Mapping[str, Any]) -> str:
     mode = str(settings.get("mode") or "auto").strip().casefold()
     if settings.get("enabled", True) is False or mode == "none":
         return "subtitle.none"
-    if mode in {"filmgen", "filmgen_handoff", "handoff"}:
-        return "subtitle.filmgen"
+    if is_external_subtitle_mode(mode):
+        return LEGACY_SUBTITLE_ADAPTER_ID
     if str(settings.get("custom_prompt") or "").strip() or str(settings.get("location_info") or "").strip():
         return "subtitle.custom_text"
     return "subtitle.auto_prompt"
@@ -207,7 +218,7 @@ def _write_filmgen_subtitle_handoff(
 ) -> Path | None:
     if artifact_root is None:
         return None
-    handoff_path = artifact_root / "_filmgen_subtitle_handoff" / "subtitle_handoff.json"
+    handoff_path = artifact_root / LEGACY_SUBTITLE_ARTIFACT_DIR / "subtitle_handoff.json"
     handoff_path.parent.mkdir(parents=True, exist_ok=True)
     handoff["handoff_path"] = str(handoff_path)
     handoff_path.write_text(

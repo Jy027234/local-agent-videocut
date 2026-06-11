@@ -5,7 +5,12 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from smart_video_cut.bundled_runtime import run_edit_with_style_package
-from smart_video_cut.filmgen_bridge import LOCAL_EXPORT_HANDOFF_SCHEMAS, build_local_edit_task_from_filmgen_pack
+from smart_video_cut.external_bridge import build_local_edit_task_from_external_pack
+from smart_video_cut.external_handoff_compat import (
+    EXTERNAL_EDIT_PACK_SCHEMAS,
+    LEGACY_EXTERNAL_PROTOCOL_KIND,
+    default_external_style_package_candidates,
+)
 from smart_video_cut.models import LOCAL_EDIT_TASK_SCHEMA, LocalEditTask, PROJECT_PACK_SCHEMA
 from smart_video_cut.pack_manager import load_pack
 from smart_video_cut.toolkit_protocol import LOCAL_TOOLKIT_PROTOCOL_SCHEMA
@@ -14,13 +19,6 @@ from smart_video_cut.worker_protocol import (
     load_worker_task_package,
     run_worker_task_package,
 )
-
-
-FILMGEN_EDIT_PACK_SCHEMAS = {
-    "aifilm-studio.smart-video-cut-handoff.v1",
-    "aifilm-studio.edit-pack.v1",
-    *LOCAL_EXPORT_HANDOFF_SCHEMAS,
-}
 
 
 def detect_runnable_protocol_kind(path: str | Path) -> str:
@@ -33,8 +31,8 @@ def detect_runnable_protocol_kind(path: str | Path) -> str:
         return "worker_task_package"
     if schema == PROJECT_PACK_SCHEMA:
         return "project_pack"
-    if schema in FILMGEN_EDIT_PACK_SCHEMAS:
-        return "filmgen_edit_pack"
+    if schema in EXTERNAL_EDIT_PACK_SCHEMAS:
+        return LEGACY_EXTERNAL_PROTOCOL_KIND
     if schema == LOCAL_EDIT_TASK_SCHEMA:
         return "local_edit_task"
     if schema == LOCAL_TOOLKIT_PROTOCOL_SCHEMA:
@@ -108,8 +106,8 @@ def prepare_protocol_run(
             "task_payload": task.to_dict(),
             "task": task,
         }
-    if schema in FILMGEN_EDIT_PACK_SCHEMAS:
-        task = _task_from_filmgen_pack(
+    if schema in EXTERNAL_EDIT_PACK_SCHEMAS:
+        task = _task_from_external_pack(
             selected,
             output_dir=output_dir,
             style_package=style_package,
@@ -123,7 +121,7 @@ def prepare_protocol_run(
         return {
             "ok": True,
             "runnable": True,
-            "protocol_kind": "filmgen_edit_pack",
+            "protocol_kind": LEGACY_EXTERNAL_PROTOCOL_KIND,
             "runner": "local_edit_task",
             "source_path": str(selected),
             "resolved_source_path": str(selected),
@@ -289,7 +287,7 @@ def _task_from_project_pack(
     )
 
 
-def _task_from_filmgen_pack(
+def _task_from_external_pack(
     path: Path,
     *,
     output_dir: str,
@@ -301,10 +299,10 @@ def _task_from_filmgen_pack(
     use_memory: bool | None,
     confirmed_brief: str | None,
 ) -> LocalEditTask:
-    style_candidate = str(style_package or "").strip() or _default_filmgen_style_package()
+    style_candidate = str(style_package or "").strip() or _default_external_style_package()
     if not style_candidate:
         raise ValueError("filmgen_protocol_missing_style_package")
-    task = build_local_edit_task_from_filmgen_pack(
+    task = build_local_edit_task_from_external_pack(
         manifest_path=path,
         style_package=style_candidate,
         output_dir=output_dir,
@@ -362,6 +360,7 @@ def _task_from_payload(
 def _nested_runnable_source(payload: Mapping[str, Any]) -> str:
     paths = _mapping(payload.get("paths"))
     candidates = [
+        str(paths.get("external_handoff_path") or "").strip(),
         str(paths.get("filmgen_handoff_path") or "").strip(),
         str(paths.get("subtitle_handoff_path") or "").strip(),
         str(paths.get("result_path") or "").strip(),
@@ -374,12 +373,9 @@ def _nested_runnable_source(payload: Mapping[str, Any]) -> str:
     return ""
 
 
-def _default_filmgen_style_package() -> str:
+def _default_external_style_package() -> str:
     root = Path(__file__).resolve().parents[2]
-    candidates = [
-        root / "packages" / "filmgen-cinematic-short",
-        root / "packages" / "door-flash-reference",
-    ]
+    candidates = list(default_external_style_package_candidates(root))
     for candidate in candidates:
         if (candidate / "style_package.json").is_file() or (candidate / "style_pack.json").is_file():
             return str(candidate)

@@ -69,14 +69,14 @@ def test_edit_brief_includes_custom_subtitle_prompt_and_location(tmp_path: Path)
     assert "位置信息：同家庄镇张庄村" in brief["brief_text"]
 
 
-def test_edit_brief_uses_package_specific_filmgen_copy(tmp_path: Path) -> None:
+def test_edit_brief_uses_package_specific_external_handoff_copy(tmp_path: Path) -> None:
     template = tmp_path / "sample.mp4"
     source = tmp_path / "input.mp4"
     template.write_bytes(b"sample")
     source.write_bytes(b"input")
     create_style_package(
         StylePackageRequest(
-            name="FilmGen Test Style",
+            name="External Handoff Test Style",
             template_video=template,
             package_dir=tmp_path / "pkg",
         )

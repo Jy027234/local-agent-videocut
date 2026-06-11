@@ -16,7 +16,11 @@ def test_root_index_points_to_local_server() -> None:
 
 def test_static_index_contains_local_workflows() -> None:
     html = (ROOT / "src" / "smart_video_cut" / "static" / "index.html").read_text(encoding="utf-8")
+    js = (ROOT / "src" / "smart_video_cut" / "static" / "app.js").read_text(encoding="utf-8")
+    html = html + "\n" + js
 
+    assert "/static/app.css" in html
+    assert "/static/app.js" in html
     assert "/api/check" in html
     assert "智子agent智能剪辑软件 Local Studio" in html
     assert "商品：智子agent" not in html
@@ -176,7 +180,7 @@ def test_static_index_contains_local_workflows() -> None:
     assert "director_chat.v0" in html
     assert "声音与音乐" in html
     assert "字幕方式" in html
-    assert "FilmGen 字幕交接" in html
+    assert "外部字幕交接" in html
     assert "高级：外部字幕交接验收" in html
     assert "previewSubtitleHandoff" in html
     assert "subtitleHandoffPath" in html
@@ -209,11 +213,11 @@ def test_static_index_contains_local_workflows() -> None:
     assert "useBgmLibraryItem" in html
     assert "bgm_library_dir" in html
     assert "bgm_library_query" in html
-    assert "FilmGen 导出交接" in html
+    assert "外部导出交接" in html
     assert "BGM 音频输入" in html
     assert "subtitle_handoff" in html
     assert "filmgen_handoff" in html
-    assert "FilmGen 导出交接验收" in html
+    assert "外部导出交接验收" in html
     assert "filmgenExportHandoffPath" in html
     assert "validateFilmgenExportHandoff" in html
     assert "renderFilmgenExportHandoffValidation" in html
@@ -350,75 +354,3 @@ def test_static_index_contains_local_workflows() -> None:
     assert "正在请求浏览器麦克风权限" in html
     assert "麦克风已开启，可以开始说话" in html
     assert "prompt_audio_path" in html
-
-
-def test_filmgen_archive_contains_smart_video_cut_bridge() -> None:
-    html = (ROOT / "src" / "aifilm_studio" / "static" / "index.html").read_text(encoding="utf-8")
-    js = (ROOT / "src" / "aifilm_studio" / "static" / "app.js").read_text(encoding="utf-8")
-
-    assert "发送到智能剪辑软件" in html
-    assert 'id="bridge-manifest-path"' in html
-    assert "/api/smart-video-cut/defaults" in js
-    assert "/api/smart-video-cut/edit-pack/preview" in js
-    assert "/api/smart-video-cut/edit-brief" in js
-    assert "三阶段模型配置" in html
-    assert "使用帮助" in html
-    assert "发布前检查" in html
-    assert 'id="tab-help"' in html
-    assert "策划验收" in html
-    assert "生成编排板" in html
-    assert 'id="tab-orchestration"' in html
-    assert "/planning/generate" in js
-    assert "/planning/save" in js
-    assert "/planning/approve" in js
-    assert "/planning/shots/" in js
-    assert "只看待处理" in html
-    assert "分镜检查" in html
-    assert "版本对比" in html
-    assert "compare-planning-version" in js
-    assert "/planning/versions/" in js
-    assert "图片验收" in html
-    assert "角色与场景参考图" in html
-    assert "视频验收" in html
-    assert "生成关键帧图" in html
-    assert "生成视频片段" in html
-    assert "重新生图" in html
-    assert "问题说明 / 修改方向" in html
-    assert "正在按你的说明重新生图" in html
-    assert "clip-regenerate-form" in html
-    assert "正在调用文生图模型" in js
-    assert "正在调用图生视频模型" in js
-    assert "busy-banner" in js
-    assert "请先写明具体问题或修改方向" in js
-    assert "/images/generate" in js
-    assert "/references" in js
-    assert "/shots/reorder" in js
-    assert "/bindings" in js
-    assert "orchestration-generate-image" in js
-    assert "bind-reference-picker" in js
-    assert "需先批准关键帧" in js
-    assert "未绑定参考图" in js
-    assert "/clips/generate" in js
-    assert "approve-image" in js
-    assert "approve-clip" in js
-    assert "open-image-regenerate" in js
-    assert "生成失败" in js
-    assert "open-clip-regenerate" in js
-    assert "delete-planning-version" in js
-    assert "delete-image" in js
-    assert "delete-clip" in js
-    assert "delete-asset" in js
-    assert "delete-reference" in js
-    assert "image-regenerate-form" in js
-    assert "历史图片" in js
-    assert "历史视频" in js
-    assert "imageVersionCard" in js
-    assert "clipVersionCard" in js
-    assert "image-preview-thumb" in js
-    assert "clip-preview-thumb" in js
-    assert "/api/assets/" in js
-    assert "适配器探针" in js
-    assert "/api/model-pipeline/config" in js
-    assert "/api/model-pipeline/probe" in js
-    assert "/api/providers/" in js
-    assert "/smoke-test" in js

@@ -4,12 +4,14 @@ import json
 from pathlib import Path
 from typing import Any
 
+from smart_video_cut.external_handoff_compat import LEGACY_EXPORT_FILENAME
+
 
 FOLDER_SCAN_SCHEMA = "smart_video_cut.local.folder_scan.v0"
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".mkv", ".webm", ".avi", ".m4v"}
 AUDIO_EXTENSIONS = {".wav", ".mp3", ".m4a", ".aac", ".flac", ".ogg"}
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".bmp"}
-RESULT_FILENAMES = {"local_studio_result.json", "project_manifest.json", "filmgen_handoff.json"}
+RESULT_FILENAMES = {"local_studio_result.json", "project_manifest.json", LEGACY_EXPORT_FILENAME}
 
 
 def scan_media_folder(

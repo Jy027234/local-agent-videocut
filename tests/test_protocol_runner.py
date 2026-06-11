@@ -126,7 +126,7 @@ def _create_style_package(tmp_path: Path) -> Path:
     )
     create_style_package(
         StylePackageRequest(
-            name="FilmGen Style",
+            name="External Handoff Style",
             template_video=template,
             package_dir=style_dir,
             settings=settings,

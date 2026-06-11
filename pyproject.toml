@@ -17,10 +17,6 @@ web = [
   "fastapi>=0.111",
   "uvicorn>=0.30",
 ]
-filmgen = [
-  "starlette>=0.37",
-  "uvicorn>=0.30",
-]
 analysis = [
   "click!=8.3.0,~=8.0",
   "numpy>=2",
@@ -46,7 +42,6 @@ dev = [
 [project.scripts]
 smart-video-cut = "smart_video_cut.cli:main"
 smart-video-cut-web = "smart_video_cut.web_app:main"
-aifilm-studio = "aifilm_studio.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

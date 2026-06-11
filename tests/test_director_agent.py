@@ -102,7 +102,7 @@ def test_director_chat_api_and_agent_tool() -> None:
     registry = build_default_registry()
     tool_result = registry.invoke(
         "chat_director",
-        message="FilmGen 交接，16:9 1920x1080",
+        message="外部交接，16:9 1920x1080",
         context={
             "style_package": "packages/door",
             "input_video": "door.mp4",

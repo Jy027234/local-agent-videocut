@@ -8,6 +8,11 @@ import unittest
 from fastapi.testclient import TestClient
 
 from smart_video_cut.export_adapters import filmgen_handoff_export_status
+from smart_video_cut.external_bridge import (
+    build_edit_brief_from_external_pack,
+    load_external_edit_pack,
+    validate_external_export_handoff_import,
+)
 from smart_video_cut.filmgen_bridge import (
     build_edit_brief_from_filmgen_pack,
     load_filmgen_edit_pack,
@@ -106,6 +111,20 @@ class FilmgenBridgeTest(unittest.TestCase):
             self.assertEqual(preview.status_code, 200)
             self.assertEqual(preview.json()["filmgen_handoff"]["recommended_project_id"], "filmgen-demo")
 
+            external_preview = client.post("/api/external/edit-pack/preview", json={"manifest_path": str(manifest)})
+            self.assertEqual(external_preview.status_code, 200)
+            self.assertEqual(external_preview.json()["external_handoff"]["recommended_project_id"], "filmgen-demo")
+
+            external_handoff = load_external_edit_pack(manifest)
+            self.assertEqual(external_handoff["recommended_project_id"], "filmgen-demo")
+
+            external_brief = build_edit_brief_from_external_pack(
+                manifest_path=manifest,
+                style_package=style_dir,
+            )
+            self.assertTrue(external_brief["ok"])
+            self.assertIn("external_handoff", external_brief)
+
     def test_load_smart_video_cut_export_handoff(self) -> None:
         with TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -140,6 +159,10 @@ class FilmgenBridgeTest(unittest.TestCase):
             self.assertEqual(validation["source_schema"], "smart_video_cut.local.export_filmgen_handoff.v1")
             self.assertEqual(validation["input_video_candidate_count"], 1)
 
+            external_validation = validate_external_export_handoff_import(handoff_path)
+            self.assertTrue(external_validation["ok"])
+            self.assertEqual(external_validation["external_handoff"]["recommended_project_id"], "svc-project")
+
             client = TestClient(create_app())
             preview = client.post("/api/filmgen/edit-pack/preview", json={"manifest_path": str(handoff_path)})
             self.assertEqual(preview.status_code, 200)
@@ -149,6 +172,11 @@ class FilmgenBridgeTest(unittest.TestCase):
             self.assertEqual(validated.status_code, 200)
             self.assertTrue(validated.json()["ok"])
             self.assertEqual(validated.json()["input_video_candidate_count"], 1)
+
+            external_validated = client.post("/api/external/export-handoff/validate", json={"handoff_path": str(handoff_path)})
+            self.assertEqual(external_validated.status_code, 200)
+            self.assertTrue(external_validated.json()["ok"])
+            self.assertIn("external_handoff", external_validated.json())
 
     def test_legacy_local_export_handoff_still_loads_with_warning(self) -> None:
         with TemporaryDirectory() as tmp:

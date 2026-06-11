@@ -41,10 +41,14 @@ def local_deployment_guide() -> dict[str, Any]:
         "customer_package": {
             "status": "available",
             "script": str(ROOT_DIR / "scripts" / "build_customer_package.ps1"),
+            "portable_runtime_script": str(ROOT_DIR / "scripts" / "prepare_portable_runtime.py"),
+            "smoke_test_script": str(ROOT_DIR / "scripts" / "release_smoke_check.py"),
             "launchers": [
                 str(ROOT_DIR / "启动本地智能剪辑软件.bat"),
                 str(ROOT_DIR / "启动本地智能剪辑软件.ps1"),
             ],
+            "preflight_command": 'py -m smart_video_cut.release_preflight --root "<app_root>" --port 8769 --require-port-available --strict --format text',
+            "smoke_test_command": 'py scripts/release_smoke_check.py --package-dir "<release_dir>" --port 8769 --timeout-seconds 60',
         },
         "ffmpeg": {
             "ready": ffmpeg_ready,

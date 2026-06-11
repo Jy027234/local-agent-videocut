@@ -63,6 +63,7 @@ from smart_video_cut.protocol_dropbox_monitor import (
 )
 from smart_video_cut.protocol_runner import run_protocol_path
 from smart_video_cut.recent_runs import delete_recent_run, list_recent_runs
+from smart_video_cut.release_preflight import collect_release_preflight
 from smart_video_cut.style_package import (
     create_style_package,
     default_settings_from_options,
@@ -555,6 +556,11 @@ def create_app() -> Any:
     @app.get("/api/check")
     def check() -> dict[str, Any]:
         return ensure_video_toolkit_available()
+
+    @app.get("/api/preflight")
+    def api_preflight() -> dict[str, Any]:
+        root = Path(__file__).resolve().parents[2]
+        return collect_release_preflight(root=root, port=8769)
 
     @app.get("/api/adapters")
     def api_adapters(category: str = "", status: str = "") -> dict[str, Any]:

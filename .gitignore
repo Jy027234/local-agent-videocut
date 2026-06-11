@@ -12,6 +12,7 @@ __pycache__/
 workspace/
 packages/
 release/
+release_*/
 tmp/
 vendor_tools/
 _isolated_non_local/
